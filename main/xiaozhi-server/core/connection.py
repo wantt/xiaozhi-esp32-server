@@ -101,7 +101,7 @@ class ConnectionHandler:
         if self.config["selected_module"]["Intent"] == 'function_call':
             self.use_function_call_mode = True
         self.chat_count = 0
-        self.auth_result = False
+        self.auth_result = True
         self.auth_method = ''
     async def handle_connection(self, ws):
         try:
@@ -113,10 +113,10 @@ class ConnectionHandler:
 
             # 进行认证
             self.auth_method = self.headers["server"].get("auth", {}).get('auth_method')
-            if self.auth_method =='wechat_mini_program':
-                self.auth_result = await self.auth.auth_device(self.headers)
-            else:
-                self.auth_result = await self.auth.authenticate(self.headers)
+            # if self.auth_method =='wechat_mini_program':
+            #     self.auth_result = await self.auth.auth_device(headers=self.headers,chat_count=0)
+            # else:
+            #     self.auth_result = await self.auth.authenticate(self.headers)
             device_id = self.headers.get("device-id", None)
 
             # 认证通过,继续处理
@@ -192,6 +192,9 @@ class ConnectionHandler:
 
     def _initialize_components(self):
         """加载插件"""
+        if self.auth_method =='wechat_mini_program':
+            self.auth_result = self.auth.auth_device(headers=self.headers,chat_count=0)
+            
         self.func_handler = FunctionHandler(self)
 
         """加载提示词"""
@@ -240,15 +243,14 @@ class ConnectionHandler:
         return True
 
     def isNeedAuth(self):
-        if self.auth_result:
+        if self.auth_method =='wechat_mini_program' and self.auth_result:
             return False
         else:
-            return True
-        # bUsePrivateConfig = self.config.get("use_private_config", False)
-        # if not bUsePrivateConfig:
-        #     # 如果不使用私有配置，就不需要验证
-        #     return False
-        # return not self.is_device_verified
+            bUsePrivateConfig = self.config.get("use_private_config", False)
+            if not bUsePrivateConfig:
+                # 如果不使用私有配置，就不需要验证
+                return False
+            return not self.is_device_verified
 
     def chat_double_stream(self, query):
         if self.isNeedAuth():
@@ -609,7 +611,7 @@ class ConnectionHandler:
 
     async def close(self):
         """资源清理方法"""
-
+        self.auth_result = await self.auth.auth_device(headers=self.headers,chat_count=self.chat_count) #计费
         # 清理其他资源
         self.stop_event.set()
         self.executor.shutdown(wait=False)
