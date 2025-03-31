@@ -1,4 +1,6 @@
 from config.logger import setup_logging
+import json
+import requests
 
 TAG = __name__
 logger = setup_logging()
@@ -22,6 +24,28 @@ class AuthMiddleware:
         self.allowed_devices = set(
             self.auth_config.get("allowed_devices", [])
         )
+
+    async def auth_device(self, headers:dict={}, chat_count:int=0):
+        device_id = headers.get("device-id", "")
+        api_url = self.auth_config.get('auth_url','')
+        if device_id and api_url:
+            request_json = {
+                "device_id": device_id,
+                "chat_count": chat_count,
+            }
+            headers = {
+                "Content-Type": "application/json"
+            }
+            response = requests.request("GET", api_url, json=request_json, headers=headers)
+            if response.status_code == 200:
+                data = json.loads(response.content)
+                code = data['code']
+                if code == '402':
+                    return False
+            else:
+                logger.bind(tag=TAG).error(response.content)
+            return True
+        return False
 
     async def authenticate(self, headers):
         """验证连接请求"""

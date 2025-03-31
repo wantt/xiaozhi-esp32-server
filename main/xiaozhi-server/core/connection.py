@@ -100,7 +100,9 @@ class ConnectionHandler:
         self.use_function_call_mode = False
         if self.config["selected_module"]["Intent"] == 'function_call':
             self.use_function_call_mode = True
-
+        self.chat_count = 0
+        self.auth_result = False
+        self.auth_method = ''
     async def handle_connection(self, ws):
         try:
             # 获取并验证headers
@@ -110,7 +112,11 @@ class ConnectionHandler:
             self.logger.bind(tag=TAG).info(f"{self.client_ip} conn - Headers: {self.headers}")
 
             # 进行认证
-            await self.auth.authenticate(self.headers)
+            self.auth_method = self.headers["server"].get("auth", {}).get('auth_method')
+            if self.auth_method =='wechat_mini_program':
+                self.auth_result = await self.auth.auth_device(self.headers)
+            else:
+                self.auth_result = await self.auth.authenticate(self.headers)
             device_id = self.headers.get("device-id", None)
 
             # 认证通过,继续处理
@@ -156,6 +162,7 @@ class ConnectionHandler:
             # 音频播放 消化线程
             audio_play_priority = threading.Thread(target=self._audio_play_priority_thread, daemon=True)
             audio_play_priority.start()
+            self.chat_count += 1
 
             try:
                 async for message in self.websocket:
@@ -214,6 +221,13 @@ class ConnectionHandler:
 
     async def _check_and_broadcast_auth_code(self):
         """检查设备绑定状态并广播认证码"""
+        if self.auth_method =='wechat_mini_program':
+            text = f"您已欠费，请微信扫描产品二维码充值"
+            self.recode_first_last_text(text)
+            future = self.executor.submit(self.speak_and_play, text)
+            self.tts_queue.put(future)
+            return False
+
         if not self.private_config.get_owner():
             auth_code = self.private_config.get_auth_code()
             if auth_code:
@@ -226,11 +240,15 @@ class ConnectionHandler:
         return True
 
     def isNeedAuth(self):
-        bUsePrivateConfig = self.config.get("use_private_config", False)
-        if not bUsePrivateConfig:
-            # 如果不使用私有配置，就不需要验证
+        if self.auth_result:
             return False
-        return not self.is_device_verified
+        else:
+            return True
+        # bUsePrivateConfig = self.config.get("use_private_config", False)
+        # if not bUsePrivateConfig:
+        #     # 如果不使用私有配置，就不需要验证
+        #     return False
+        # return not self.is_device_verified
 
     def chat_double_stream(self, query):
         if self.isNeedAuth():
