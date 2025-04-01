@@ -112,7 +112,7 @@ class ConnectionHandler:
             self.logger.bind(tag=TAG).info(f"{self.client_ip} conn - Headers: {self.headers}")
 
             # 进行认证
-            self.auth_method = self.headers["server"].get("auth", {}).get('auth_method')
+            self.auth_method = self.config["server"].get("auth", {}).get('auth_method')
             # if self.auth_method =='wechat_mini_program':
             #     self.auth_result = await self.auth.auth_device(headers=self.headers,chat_count=0)
             # else:
