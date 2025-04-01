@@ -611,7 +611,7 @@ class ConnectionHandler:
 
     async def close(self):
         """资源清理方法"""
-        self.auth_result = await self.auth.auth_device(headers=self.headers,chat_count=self.chat_count) #计费
+        self.auth_result = self.auth.auth_device(headers=self.headers,chat_count=self.chat_count) #计费
         # 清理其他资源
         self.stop_event.set()
         self.executor.shutdown(wait=False)
