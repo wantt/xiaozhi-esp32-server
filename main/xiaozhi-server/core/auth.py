@@ -27,7 +27,7 @@ class AuthMiddleware:
 
     def auth_device(self, headers:dict={}, chat_count:int=0):
         device_id = headers.get("device-id", "")
-        api_url = self.auth_config.get('auth_url','')
+        api_url = self.auth_config.get('authurl','http://47.243.172.147:24003/auth_once')
         if device_id and api_url:
             request_json = {
                 "device_id": device_id,
